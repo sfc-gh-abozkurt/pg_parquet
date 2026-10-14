@@ -6,6 +6,8 @@ pub(crate) mod field_ids;
 pub(crate) mod geospatial_stats;
 pub(crate) mod integer_cast;
 pub(crate) mod match_by;
+pub(crate) mod parquet_concat;
+pub(crate) mod parquet_multipart;
 pub(crate) mod parquet_reader;
 pub(crate) mod parquet_version;
 pub(crate) mod parquet_writer;

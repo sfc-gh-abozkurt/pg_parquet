@@ -540,7 +540,12 @@ pub(crate) fn copy_to_helper(uri: &str) {
 // geospatial column of the test file stores. A None crs means that the column uses the default
 // crs of the parquet geospatial types, which is lon/lat on the WGS84 ellipsoid.
 pub(crate) fn geospatial_crs_by_column() -> HashMap<String, Option<String>> {
-    let uri_info = ParsedUriInfo::try_from(LOCAL_TEST_FILE_PATH).unwrap();
+    geospatial_crs_by_column_of(LOCAL_TEST_FILE_PATH)
+}
+
+// geospatial_crs_by_column_of is geospatial_crs_by_column for a file other than the test file
+pub(crate) fn geospatial_crs_by_column_of(uri: &str) -> HashMap<String, Option<String>> {
+    let uri_info = ParsedUriInfo::try_from(uri).unwrap();
     let parquet_metadata = parquet_metadata_from_uri(&uri_info);
 
     let mut crs_by_column = HashMap::new();
