@@ -35,9 +35,17 @@ extension_sql_file!("../sql/bootstrap.sql", name = "role_setup", bootstrap);
 // The threads it does start, to run a blocking call of an object store on, are named after the
 // extension, which is what lets a debug build tell a thread of ours apart from one that a
 // dependency started behind our back. See copy_process_guard.
+//
+// The pool those blocking calls go to is held to a single thread, so that a copy adds one
+// thread to the backend rather than one per call the object store keeps in flight. A COPY TO
+// a local file ends at eight of those, the concurrency the writer flushes buffered parts with,
+// while a copy to a remote store does that work on the reactor and needs none. A call that
+// finds the thread busy waits in the runtime's queue rather than failing, and no blocking call
+// of an object store waits on another, so the bound serializes them but cannot deadlock.
 pub(crate) static PG_BACKEND_TOKIO_RUNTIME: LazyLock<Runtime> = LazyLock::new(|| {
     tokio::runtime::Builder::new_current_thread()
         .thread_name(RUNTIME_THREAD_NAME)
+        .max_blocking_threads(1)
         .enable_all()
         .build()
         .unwrap_or_else(|e| panic!("failed to create tokio runtime: {e}"))
