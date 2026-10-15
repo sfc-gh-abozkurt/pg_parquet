@@ -6,6 +6,7 @@ use crate::arrow_parquet::uri_utils::{
     ensure_access_privilege_to_uri, object_store_base_uri, ParsedUriInfo,
 };
 use crate::object_store::object_store_cache::get_or_create_object_store;
+use crate::parquet_copy_hook::copy_process_guard::assert_backend_only_during_read;
 use crate::PG_BACKEND_TOKIO_RUNTIME;
 
 #[pg_schema]
@@ -18,7 +19,7 @@ mod parquet {
             panic!("{}", e.to_string());
         });
 
-        TableIterator::new(list_uri(&uri_info))
+        TableIterator::new(assert_backend_only_during_read(|| list_uri(&uri_info)))
     }
 }
 

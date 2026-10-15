@@ -6,6 +6,7 @@ use crate::{
     arrow_parquet::uri_utils::{
         ensure_access_privilege_to_uri, parquet_metadata_from_uri, uri_as_string, ParsedUriInfo,
     },
+    parquet_copy_hook::copy_process_guard::assert_backend_only_during_read,
     parquet_udfs::stats::{stats_max_value_to_pg_str, stats_min_value_to_pg_str},
 };
 
@@ -49,7 +50,8 @@ mod parquet {
         });
 
         ensure_access_privilege_to_uri(&uri_info, true);
-        let parquet_metadata = parquet_metadata_from_uri(&uri_info);
+        let parquet_metadata =
+            assert_backend_only_during_read(|| parquet_metadata_from_uri(&uri_info));
 
         let mut rows = vec![];
 
@@ -157,7 +159,8 @@ mod parquet {
         });
 
         ensure_access_privilege_to_uri(&uri_info, true);
-        let parquet_metadata = parquet_metadata_from_uri(&uri_info);
+        let parquet_metadata =
+            assert_backend_only_during_read(|| parquet_metadata_from_uri(&uri_info));
 
         let created_by = parquet_metadata
             .file_metadata()
@@ -197,7 +200,8 @@ mod parquet {
         });
 
         ensure_access_privilege_to_uri(&uri_info, true);
-        let parquet_metadata = parquet_metadata_from_uri(&uri_info);
+        let parquet_metadata =
+            assert_backend_only_during_read(|| parquet_metadata_from_uri(&uri_info));
 
         let kv_metadata = parquet_metadata.file_metadata().key_value_metadata();
 

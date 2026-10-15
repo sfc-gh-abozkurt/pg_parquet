@@ -29,6 +29,7 @@ use crate::{
     },
 };
 
+use super::copy_process_guard::assert_backend_only_during;
 use super::parallel_copy_to::requested_parallel_workers;
 
 // below this many row groups there is not enough of the file to hand around
@@ -636,7 +637,12 @@ pub extern "C-unwind" fn pg_parquet_parallel_copy_from_worker(
         pg_sys::shm_mq_attach(queue, seg, std::ptr::null_mut())
     };
 
-    decode_row_groups(shared, worker, handle);
+    // the worker reads the file itself rather than through the copy hook, so it is checked
+    // on its own. It never has a PROGRAM clause to fork a shell for.
+    let has_program_clause = false;
+    assert_backend_only_during(has_program_clause, || {
+        decode_row_groups(shared, worker, handle)
+    });
 
     unsafe { pg_sys::shm_mq_detach(handle) };
 }

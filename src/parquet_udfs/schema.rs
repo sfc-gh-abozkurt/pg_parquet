@@ -4,6 +4,8 @@ use crate::arrow_parquet::uri_utils::{
     ensure_access_privilege_to_uri, parquet_schema_from_uri, uri_as_string, ParsedUriInfo,
 };
 
+use crate::parquet_copy_hook::copy_process_guard::assert_backend_only_during_read;
+
 use ::parquet::basic::{ConvertedType, LogicalType, Repetition};
 use ::parquet::schema::types::{ColumnDescPtr, ColumnDescriptor, ColumnPath, Type, TypePtr};
 use pgrx::{iter::TableIterator, name, pg_extern, pg_schema};
@@ -37,7 +39,7 @@ mod parquet {
         });
 
         ensure_access_privilege_to_uri(&uri_info, true);
-        let parquet_schema = parquet_schema_from_uri(&uri_info);
+        let parquet_schema = assert_backend_only_during_read(|| parquet_schema_from_uri(&uri_info));
 
         let mut rows = vec![];
 

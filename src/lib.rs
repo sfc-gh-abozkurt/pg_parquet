@@ -2,6 +2,7 @@ use std::ffi::CStr;
 use std::sync::LazyLock;
 
 use arrow_parquet::geospatial_stats::init_geospatial_stats_accumulator_factory;
+use parquet_copy_hook::copy_process_guard::RUNTIME_THREAD_NAME;
 use parquet_copy_hook::hook::{init_parquet_copy_hook, ENABLE_PARQUET_COPY_HOOK};
 use parquet_copy_hook::parallel_copy_to::{MAX_PARALLEL_WORKERS, MAX_PARALLEL_WORKERS_LIMIT};
 use parquet_copy_hook::pg_compat::MarkGUCPrefixReserved;
@@ -31,8 +32,12 @@ extension_sql_file!("../sql/bootstrap.sql", name = "role_setup", bootstrap);
 
 // PG_BACKEND_TOKIO_RUNTIME creates a tokio runtime that uses the current thread
 // to run the tokio reactor. This uses the same thread that is running the Postgres backend.
+// The threads it does start, to run a blocking call of an object store on, are named after the
+// extension, which is what lets a debug build tell a thread of ours apart from one that a
+// dependency started behind our back. See copy_process_guard.
 pub(crate) static PG_BACKEND_TOKIO_RUNTIME: LazyLock<Runtime> = LazyLock::new(|| {
     tokio::runtime::Builder::new_current_thread()
+        .thread_name(RUNTIME_THREAD_NAME)
         .enable_all()
         .build()
         .unwrap_or_else(|e| panic!("failed to create tokio runtime: {e}"))

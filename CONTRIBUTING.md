@@ -99,6 +99,12 @@ Object storage tests are integration tests which require below containers runnin
 
 Our [Makefile](Makefile) automates setting up all containers and running tests for pg_parquet.
 
+A debug build checks after every `COPY` to or from parquet that the command stayed inside the
+Postgres backend: it may not leave a child process behind that Postgres did not fork itself, and
+the only threads it may use are the ones of pg_parquet's own tokio runtime. A dependency that
+starts a thread pool or forks a helper process therefore fails the test suite. See
+[copy_process_guard.rs](src/parquet_copy_hook/copy_process_guard.rs).
+
 #### Build Dependencies
 - rustup
 - pgrx
