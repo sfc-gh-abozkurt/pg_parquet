@@ -22,6 +22,7 @@ use crate::{
 
 use super::{
     copy_from::{execute_copy_from, pop_parallel_copy_from_source, pop_parquet_reader_context},
+    copy_process_guard::{assert_backend_only_during, assert_backend_only_during_read},
     copy_progress::{end_copy_progress, start_copy_to_progress},
     copy_to::execute_copy_to_with_dest_receiver,
     copy_to_split_dest_receiver::free_copy_to_parquet_split_dest_receiver,
@@ -58,6 +59,19 @@ pub(crate) extern "C-unwind" fn init_parquet_copy_hook() {
 }
 
 pub(crate) fn process_copy_to_parquet(
+    p_stmt: &PgBox<PlannedStmt>,
+    query_string: &CStr,
+    params: &PgBox<ParamListInfoData>,
+    query_env: &PgBox<QueryEnvironment>,
+) -> u64 {
+    let has_program_clause = copy_stmt_program(p_stmt).is_some();
+
+    assert_backend_only_during(has_program_clause, || {
+        copy_to_parquet(p_stmt, query_string, params, query_env)
+    })
+}
+
+fn copy_to_parquet(
     p_stmt: &PgBox<PlannedStmt>,
     query_string: &CStr,
     params: &PgBox<ParamListInfoData>,
@@ -139,6 +153,18 @@ fn process_copy_from_parquet(
     query_string: &CStr,
     query_env: &PgBox<QueryEnvironment>,
 ) -> u64 {
+    let has_program_clause = copy_stmt_program(p_stmt).is_some();
+
+    assert_backend_only_during(has_program_clause, || {
+        copy_from_parquet(p_stmt, query_string, query_env)
+    })
+}
+
+fn copy_from_parquet(
+    p_stmt: &PgBox<PlannedStmt>,
+    query_string: &CStr,
+    query_env: &PgBox<QueryEnvironment>,
+) -> u64 {
     let uri_info = copy_stmt_uri(p_stmt).unwrap_or_else(|e| panic!("{}", e));
 
     let copy_from = true;
@@ -199,6 +225,31 @@ fn call_next_process_utility(
 
 #[allow(clippy::too_many_arguments)]
 fn process_create_table_from_parquet(
+    p_stmt: &mut PgBox<PlannedStmt>,
+    query_string: &CStr,
+    context: u32,
+    params: *mut ParamListInfoData,
+    query_env: *mut QueryEnvironment,
+    dest: *mut DestReceiver,
+    completion_tag: *mut QueryCompletion,
+) {
+    // the inference reads the parquet file before any copy does, so the check has to start
+    // here rather than at the copy that "load_from" runs
+    assert_backend_only_during_read(|| {
+        create_table_from_parquet(
+            p_stmt,
+            query_string,
+            context,
+            params,
+            query_env,
+            dest,
+            completion_tag,
+        )
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn create_table_from_parquet(
     p_stmt: &mut PgBox<PlannedStmt>,
     query_string: &CStr,
     context: u32,

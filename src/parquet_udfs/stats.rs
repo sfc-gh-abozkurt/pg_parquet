@@ -16,6 +16,7 @@ use crate::{
     arrow_parquet::uri_utils::{
         ensure_access_privilege_to_uri, parquet_metadata_from_uri, ParsedUriInfo,
     },
+    parquet_copy_hook::copy_process_guard::assert_backend_only_during_read,
     type_compat::pg_arrow_type_conversions::{
         i128_to_numeric, i32_to_date, i64_to_time, i64_to_timestamp, i64_to_timestamptz,
         i64_to_timetz, make_numeric_typmod,
@@ -113,7 +114,8 @@ mod parquet {
         });
 
         ensure_access_privilege_to_uri(&uri_info, true);
-        let parquet_metadata = parquet_metadata_from_uri(&uri_info);
+        let parquet_metadata =
+            assert_backend_only_during_read(|| parquet_metadata_from_uri(&uri_info));
 
         let mut aggregated_column_stats = HashMap::new();
 
